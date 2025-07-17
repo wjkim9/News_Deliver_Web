@@ -1,0 +1,400 @@
+import React, { useState } from 'react';
+import { Clock, Plus, X, Save, Calendar, Hash, Settings } from 'lucide-react';
+
+type KeywordType = 'include' | 'exclude';
+
+type KeywordEntry = {
+  type: KeywordType;
+  value: string;
+};
+
+type DeliveryBoxProps = {
+  index: number;
+  onRemove: () => void;
+};
+
+const DeliveryBox: React.FC<DeliveryBoxProps> = ({ index, onRemove }) => {
+  const [keywords, setKeywords] = useState<KeywordEntry[]>([]);
+  const [newKeyword, setNewKeyword] = useState('');
+  const [newKeywordType, setNewKeywordType] = useState<KeywordType>('include');
+
+  const [deliveryTime, setDeliveryTime] = useState('08:00');
+  const [deliveryStartDate, setDeliveryStartDate] = useState('');
+  const [deliveryEndDate, setDeliveryEndDate] = useState('');
+  const [selectedDays, setSelectedDays] = useState<string[]>(['월', '화', '수', '목', '금']);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const weekDays = ['월', '화', '수', '목', '금', '토', '일'];
+
+  const addKeyword = () => {
+    const trimmed = newKeyword.trim();
+    if (!trimmed || keywords.length >= 5) return;
+    if (keywords.some(k => k.value === trimmed && k.type === newKeywordType)) return;
+
+    setKeywords([...keywords, { type: newKeywordType, value: trimmed }]);
+    setNewKeyword('');
+  };
+
+  const removeKeyword = (target: KeywordEntry) => {
+    setKeywords(keywords.filter(k => !(k.type === target.type && k.value === target.value)));
+  };
+
+  const toggleDay = (day: string) => {
+    setSelectedDays((prev) =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    );
+  };
+
+  const handleSave = async () => {
+    // 필수 필드 검증
+    if (!deliveryStartDate || !deliveryEndDate || selectedDays.length === 0) {
+      alert('배송 시작일, 종료일, 요일을 모두 설정해주세요.');
+      return;
+    }
+
+    if (new Date(deliveryStartDate) >= new Date(deliveryEndDate)) {
+      alert('배송 종료일은 시작일보다 늦어야 합니다.');
+      return;
+    }
+
+    setIsSaving(true);
+    
+    // 실제로는 여기서 API 호출하여 DB에 저장
+    const settingsData = {
+      deliveryTime,
+      deliveryStartDate,
+      deliveryEndDate,
+      selectedDays,
+      keywords: keywords.map(k => ({ type: k.type, value: k.value }))
+    };
+
+    try {
+      // 시뮬레이션: API 호출
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      console.log('저장된 설정:', settingsData);
+      alert('설정이 성공적으로 저장되었습니다!');
+    } catch (error) {
+      alert('설정 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-md border border-gray-100 p-8 space-y-8 relative hover:shadow-lg transition-all duration-300">
+      <button
+        onClick={onRemove}
+        className="absolute top-6 right-6 text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all duration-200 z-10"
+      >
+        <X className="w-5 h-5" />
+      </button>
+
+      {/* 배송 설정 */}
+      <div>
+        <div className="flex items-center space-x-4 mb-6">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
+            <Settings className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">배송 설정 #{index + 1}</h2>
+            <p className="text-gray-600">뉴스를 받을 시간과 요일, 기간을 설정하세요</p>
+          </div>
+        </div>
+
+        {/* 배송 기간 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+              <Calendar className="w-4 h-4 mr-2 text-blue-600" />
+              배송 시작일 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="date"
+              value={deliveryStartDate}
+              onChange={(e) => setDeliveryStartDate(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+              <Calendar className="w-4 h-4 mr-2 text-blue-600" />
+              배송 종료일 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="date"
+              value={deliveryEndDate}
+              onChange={(e) => setDeliveryEndDate(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+              required
+            />
+          </div>
+        </div>
+
+        {/* 배송 시간 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+              <Clock className="w-4 h-4 mr-2 text-blue-600" />
+              배송 시간
+            </label>
+            <input
+              type="time"
+              value={deliveryTime}
+              onChange={(e) => setDeliveryTime(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+            />
+          </div>
+        </div>
+
+        {/* 요일 */}
+        <div className="mt-8">
+          <label className="block text-sm font-semibold text-gray-800 mb-4 flex items-center">
+            <Calendar className="w-4 h-4 mr-2 text-blue-600" />
+            요일 설정 <span className="text-red-500">*</span>
+          </label>
+          <div className="flex flex-wrap gap-3">
+            {weekDays.map((day) => (
+              <button
+                key={day}
+                type="button"
+                onClick={() => toggleDay(day)}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${
+                  selectedDays.includes(day)
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105'
+                    : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-blue-600 border border-gray-200 hover:border-blue-300'
+                }`}
+              >
+                {day}
+              </button>
+            ))}
+          </div>
+          <p className="text-sm text-gray-600 mt-3 font-medium">
+            선택된 요일: {selectedDays.length > 0 ? selectedDays.join(', ') : '없음'}
+          </p>
+          {selectedDays.length === 0 && (
+            <p className="text-sm text-red-600 mt-2 font-medium">최소 하나의 요일을 선택해주세요.</p>
+          )}
+        </div>
+      </div>
+
+      {/* 관심 키워드 */}
+      <div>
+        <div className="flex items-center space-x-3 mb-4">
+          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <Hash className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">관심 키워드</h2>
+            <p className="text-sm text-gray-600">최대 5개까지 추가할 수 있습니다 (포함/제외 합산)</p>
+          </div>
+        </div>
+
+        {/* Desktop Layout */}
+        <div className="hidden sm:flex space-x-3 mb-4">
+          <select
+            value={newKeywordType}
+            onChange={(e) => setNewKeywordType(e.target.value as KeywordType)}
+            className="px-4 py-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium"
+          >
+            <option value="include">포함</option>
+            <option value="exclude">제외</option>
+          </select>
+          <input
+            type="text"
+            value={newKeyword}
+            onChange={(e) => setNewKeyword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addKeyword()}
+            placeholder="새 키워드 입력"
+            disabled={keywords.length >= 5}
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed bg-gray-50 hover:bg-white transition-all duration-200"
+          />
+          <button
+            type="button"
+            onClick={addKeyword}
+            disabled={keywords.length >= 5 || !newKeyword.trim()}
+            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Mobile Layout */}
+        <div className="sm:hidden space-y-3 mb-4">
+          <div className="flex space-x-3">
+            <select
+              value={newKeywordType}
+              onChange={(e) => setNewKeywordType(e.target.value as KeywordType)}
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium"
+            >
+              <option value="include">포함</option>
+              <option value="exclude">제외</option>
+            </select>
+            <button
+              type="button"
+              onClick={addKeyword}
+              disabled={keywords.length >= 5 || !newKeyword.trim()}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center font-semibold shadow-lg"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
+          <input
+            type="text"
+            value={newKeyword}
+            onChange={(e) => setNewKeyword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addKeyword()}
+            placeholder="새 키워드 입력"
+            disabled={keywords.length >= 5}
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed bg-gray-50 hover:bg-white transition-all duration-200"
+          />
+        </div>
+
+        <div className="text-sm text-gray-600 font-medium mb-3">{keywords.length}/5 키워드 사용 중</div>
+
+        {keywords.length > 0 && (
+          <div className="flex flex-wrap gap-3 mt-4">
+            {keywords.map((keyword, i) => (
+              <span
+                key={`${keyword.type}-${keyword.value}-${i}`}
+                className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold border-2 transition-all duration-200 ${
+                  keyword.type === 'include'
+                    ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200'
+                    : 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200'
+                }`}
+              >
+                [{keyword.type === 'include' ? '포함' : '제외'}] {keyword.value}
+                <button
+                  type="button"
+                  onClick={() => removeKeyword(keyword)}
+                  className="ml-2 hover:opacity-70 p-1 rounded-full hover:bg-white/50 transition-all duration-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 저장 버튼 */}
+      <div className="pt-8 border-t border-gray-200">
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="w-full flex items-center justify-center space-x-3 px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed font-bold text-lg shadow-lg hover:shadow-xl"
+        >
+          {isSaving ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>저장 중...</span>
+            </>
+          ) : (
+            <>
+              <Save className="w-5 h-5" />
+              <span>설정 저장</span>
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const SettingsPage: React.FC = () => {
+  const [boxes, setBoxes] = useState<number[]>([Date.now()]);
+
+  const addBox = () => {
+    if (boxes.length < 3) {
+      setBoxes([...boxes, Date.now()]);
+    }
+  };
+
+  const removeBox = (id: number) => {
+    if (boxes.length > 1) {
+      setBoxes(boxes.filter(box => box !== id));
+    } else {
+      // 마지막 박스도 삭제 가능하도록 변경
+      setBoxes(boxes.filter(box => box !== id));
+      // 모든 박스가 삭제되면 새로운 박스 하나 추가
+      if (boxes.length === 1) {
+        setTimeout(() => {
+          setBoxes([Date.now()]);
+        }, 100);
+      }
+    }
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-4xl font-bold text-gray-900 mb-3">설정</h1>
+        <p className="text-gray-600 text-lg">뉴스 수신 설정을 관리하세요</p>
+      </div>
+
+      {/* 안내 메시지 */}
+      <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6 shadow-md">
+        <div className="flex items-start space-x-3">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
+            <span className="text-white text-sm font-bold">!</span>
+          </div>
+          <div className="text-blue-800">
+            <p className="font-bold text-lg mb-2">설정 안내</p>
+            <ul className="space-y-2 text-blue-700 font-medium">
+              <li>• 각 배송 설정을 완료한 후 반드시 "설정 저장" 버튼을 눌러주세요.</li>
+              <li>• 최대 3개의 배송 설정을 만들 수 있습니다.</li>
+              <li>• 배송 시작일, 종료일, 요일은 필수 입력 항목입니다.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* 배송 박스 리스트 */}
+      {boxes.map((id, index) => (
+        <DeliveryBox
+          key={id}
+          index={index}
+          className="w-full px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+        />
+      ))}
+
+      {/* 추가 버튼 */}
+      {boxes.length < 3 && (
+        <div className="text-center bg-white rounded-xl p-8 shadow-md border border-gray-100">
+          <button
+            onClick={addBox}
+            className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center space-x-3 font-bold text-lg shadow-lg hover:shadow-xl"
+          >
+            <Plus className="w-5 h-5" />
+            <span>배송 설정 추가하기</span>
+          </button>
+          <p className="text-gray-600 mt-4 font-medium">
+            {boxes.length}/3개 배송 설정 사용 중
+          </p>
+        </div>
+      )}
+
+      {/* 전체 설정이 없을 때 메시지 */}
+      {boxes.length === 0 && (
+        <div className="text-center py-16 bg-white rounded-xl shadow-md border border-gray-100">
+          <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <Clock className="w-10 h-10 text-gray-500" />
+          </div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-3">배송 설정이 없습니다</h3>
+          <p className="text-gray-600 mb-8 text-lg">새로운 배송 설정을 추가해보세요.</p>
+          <button
+            onClick={addBox}
+            className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center space-x-3 mx-auto font-bold text-lg shadow-lg hover:shadow-xl"
+          >
+            <Plus className="w-5 h-5" />
+            <span>첫 번째 배송 설정 만들기</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SettingsPage;
