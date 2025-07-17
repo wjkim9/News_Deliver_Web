@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, Plus, X, Save, Calendar, Hash, Settings } from 'lucide-react';
 
 type KeywordType = 'include' | 'exclude';
@@ -8,21 +8,69 @@ type KeywordEntry = {
   value: string;
 };
 
+// SettingData 타입 정의
+interface SettingData {
+  id?: number;
+  deliveryTime: string;
+  deliveryStartDate: string;
+  deliveryEndDate: string;
+  selectedDays: string[];
+  keywords: KeywordEntry[];
+}
+
 type DeliveryBoxProps = {
   index: number;
   onRemove: () => void;
+  initialSetting?: Partial<SettingData>;
 };
 
-const DeliveryBox: React.FC<DeliveryBoxProps> = ({ index, onRemove }) => {
-  const [keywords, setKeywords] = useState<KeywordEntry[]>([]);
+// ISO 8601 → 'HH:mm' 변환 함수
+function isoToTime(isoString: string | undefined) {
+  if (!isoString) return '08:00';
+  const date = new Date(isoString);
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+// 숫자 요일 → 한글 매핑
+const numberToDay: { [key: number]: string } = { 1: '월', 2: '화', 3: '수', 4: '목', 5: '금', 6: '토', 7: '일' };
+
+// ISO 8601 → 'YYYY-MM-DD' 변환
+function isoToDate(isoString: string | undefined) {
+  if (!isoString) return '';
+  return isoString.slice(0, 10);
+}
+
+// 서버 응답을 DeliveryBox의 initialSetting으로 변환
+function convertSettingFromServer(setting: any): Partial<SettingData> {
+  return {
+    id: setting.id,
+    deliveryTime: setting.deliveryTime, // 이미 isoToTime에서 처리
+    deliveryStartDate: isoToDate(setting.startDate),
+    deliveryEndDate: isoToDate(setting.endDate),
+    selectedDays: Array.isArray(setting.days) ? setting.days.map((n: number) => numberToDay[n]) : [],
+    keywords: [
+      ...(setting.settingKeywords || []).map((v: string) => ({ type: 'include', value: v })),
+      ...(setting.blockKeywords || []).map((v: string) => ({ type: 'exclude', value: v })),
+    ],
+  };
+}
+
+const DeliveryBox: React.FC<DeliveryBoxProps> = ({ index, onRemove, initialSetting }) => {
+  // id 상태 추가
+  const [id, setId] = useState<number | undefined>(initialSetting?.id);
+  const [keywords, setKeywords] = useState<KeywordEntry[]>(initialSetting?.keywords || []);
   const [newKeyword, setNewKeyword] = useState('');
   const [newKeywordType, setNewKeywordType] = useState<KeywordType>('include');
-
-  const [deliveryTime, setDeliveryTime] = useState('08:00');
-  const [deliveryStartDate, setDeliveryStartDate] = useState('');
-  const [deliveryEndDate, setDeliveryEndDate] = useState('');
-  const [selectedDays, setSelectedDays] = useState<string[]>(['월', '화', '수', '목', '금']);
+  const [deliveryTime, setDeliveryTime] = useState(
+    initialSetting?.deliveryTime ? isoToTime(initialSetting.deliveryTime as string) : '08:00'
+  );
+  const [deliveryStartDate, setDeliveryStartDate] = useState(initialSetting?.deliveryStartDate || '');
+  const [deliveryEndDate, setDeliveryEndDate] = useState(initialSetting?.deliveryEndDate || '');
+  const [selectedDays, setSelectedDays] = useState<string[]>(initialSetting?.selectedDays || ['월', '화', '수', '목', '금']);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const weekDays = ['월', '화', '수', '목', '금', '토', '일'];
 
@@ -45,35 +93,60 @@ const DeliveryBox: React.FC<DeliveryBoxProps> = ({ index, onRemove }) => {
     );
   };
 
+  // 한글 요일 → 숫자 매핑
+  const dayToNumber: { [key: string]: number } = { '월': 1, '화': 2, '수': 3, '목': 4, '금': 5, '토': 6, '일': 7 };
+
+  // 날짜+시간을 ISO 8601로 변환 (예: 2024-06-01 + 08:00 → 2024-06-01T08:00:00.000Z)
+  function toISODateTime(date: string, time: string) {
+    if (!date || !time) return '';
+    // 브라우저 환경에서 시간대 문제를 피하려면 local time으로 조합 후 toISOString
+    const [year, month, day] = date.split('-').map(Number);
+    const [hour, minute] = time.split(':').map(Number);
+    const d = new Date(year, month - 1, day, hour, minute);
+    return d.toISOString();
+  }
+
+  // 저장 함수 수정: id 유무에 따라 POST/PUT
   const handleSave = async () => {
-    // 필수 필드 검증
     if (!deliveryStartDate || !deliveryEndDate || selectedDays.length === 0) {
       alert('배송 시작일, 종료일, 요일을 모두 설정해주세요.');
       return;
     }
-
     if (new Date(deliveryStartDate) >= new Date(deliveryEndDate)) {
       alert('배송 종료일은 시작일보다 늦어야 합니다.');
       return;
     }
-
     setIsSaving(true);
-    
-    // 실제로는 여기서 API 호출하여 DB에 저장
-    const settingsData = {
-      deliveryTime,
-      deliveryStartDate,
-      deliveryEndDate,
-      selectedDays,
-      keywords: keywords.map(k => ({ type: k.type, value: k.value }))
+    // SettingDTO에 맞게 데이터 변환
+    const settingData = {
+      id,
+      deliveryTime: toISODateTime(deliveryStartDate, deliveryTime), // deliveryTime도 ISO 8601로 보냄
+      startDate: toISODateTime(deliveryStartDate, deliveryTime),
+      endDate: toISODateTime(deliveryEndDate, deliveryTime),
+      settingKeywords: keywords.filter(k => k.type === 'include').map(k => k.value),
+      blockKeywords: keywords.filter(k => k.type === 'exclude').map(k => k.value),
+      days: selectedDays.map(day => dayToNumber[day]),
+      // userId는 백엔드에서 JWT로 추출
     };
-
     try {
-      // 시뮬레이션: API 호출
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      console.log('저장된 설정:', settingsData);
-      alert('설정이 성공적으로 저장되었습니다!');
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch('/api/setting', {
+        method: id ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(settingData),
+      });
+      if (res.ok) {
+        if (!id) {
+          const newId = await res.json();
+          setId(newId);
+        }
+        alert('설정이 성공적으로 저장되었습니다!');
+      } else {
+        alert('설정 저장 중 오류가 발생했습니다.');
+      }
     } catch (error) {
       alert('설정 저장 중 오류가 발생했습니다.');
     } finally {
@@ -81,13 +154,48 @@ const DeliveryBox: React.FC<DeliveryBoxProps> = ({ index, onRemove }) => {
     }
   };
 
+  // 삭제 함수
+  const handleDelete = async () => {
+    if (!id) {
+      // 아직 저장 전인 박스는 그냥 프론트에서만 삭제
+      onRemove();
+      return;
+    }
+    if (!window.confirm('정말로 이 설정을 삭제하시겠습니까?')) return;
+    setIsDeleting(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(`/api/setting/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+      });
+      if (res.status === 204) {
+        onRemove();
+      } else {
+        alert('설정 삭제 중 오류가 발생했습니다.');
+      }
+    } catch (e) {
+      alert('설정 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-100 p-8 space-y-8 relative hover:shadow-lg transition-all duration-300">
       <button
-        onClick={onRemove}
-        className="absolute top-6 right-6 text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all duration-200 z-10"
+        onClick={handleDelete}
+        disabled={isDeleting}
+        className="absolute top-6 right-6 text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all duration-200 z-10 disabled:opacity-60"
       >
-        <X className="w-5 h-5" />
+        {isDeleting ? (
+          <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+        ) : (
+          <X className="w-5 h-5" />
+        )}
       </button>
 
       {/* 배송 설정 */}
@@ -278,7 +386,7 @@ const DeliveryBox: React.FC<DeliveryBoxProps> = ({ index, onRemove }) => {
         )}
       </div>
 
-      {/* 저장 버튼 */}
+      {/* 저장 버튼 - 각 박스별로만 표시 */}
       <div className="pt-8 border-t border-gray-200">
         <button
           onClick={handleSave}
@@ -303,26 +411,55 @@ const DeliveryBox: React.FC<DeliveryBoxProps> = ({ index, onRemove }) => {
 };
 
 const SettingsPage: React.FC = () => {
-  const [boxes, setBoxes] = useState<number[]>([Date.now()]);
+  // boxes: SettingData[] 배열로 변경
+  const [boxes, setBoxes] = useState<Partial<SettingData>[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // 설정 목록 조회 API 호출
+  useEffect(() => {
+    const fetchSettings = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem('accessToken');
+        const res = await fetch('/api/setting', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // data가 배열이 아니면 빈 배열로 처리, 변환 함수 적용
+          setBoxes(Array.isArray(data) ? data.map(convertSettingFromServer) : []);
+        } else {
+          setBoxes([]);
+        }
+      } catch (e) {
+        setBoxes([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  // 새 박스 추가 (빈 설정)
   const addBox = () => {
     if (boxes.length < 3) {
-      setBoxes([...boxes, Date.now()]);
+      setBoxes([...boxes, {}]);
     }
   };
 
-  const removeBox = (id: number) => {
+  // 박스 삭제 (index 기준)
+  const removeBox = (idx: number) => {
     if (boxes.length > 1) {
-      setBoxes(boxes.filter(box => box !== id));
+      setBoxes(boxes.filter((_, i) => i !== idx));
     } else {
-      // 마지막 박스도 삭제 가능하도록 변경
-      setBoxes(boxes.filter(box => box !== id));
-      // 모든 박스가 삭제되면 새로운 박스 하나 추가
-      if (boxes.length === 1) {
-        setTimeout(() => {
-          setBoxes([Date.now()]);
-        }, 100);
-      }
+      setBoxes([]);
+      setTimeout(() => {
+        setBoxes([{}]);
+      }, 100);
     }
   };
 
@@ -333,7 +470,6 @@ const SettingsPage: React.FC = () => {
         <h1 className="text-4xl font-bold text-gray-900 mb-3">설정</h1>
         <p className="text-gray-600 text-lg">뉴스 수신 설정을 관리하세요</p>
       </div>
-
       {/* 안내 메시지 */}
       <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6 shadow-md">
         <div className="flex items-start space-x-3">
@@ -350,16 +486,19 @@ const SettingsPage: React.FC = () => {
           </div>
         </div>
       </div>
-
+      {/* 로딩 상태 */}
+      {loading && (
+        <div className="text-center py-8 text-lg text-gray-500">설정 정보를 불러오는 중...</div>
+      )}
       {/* 배송 박스 리스트 */}
-      {boxes.map((id, index) => (
+      {!loading && boxes.map((setting, index) => (
         <DeliveryBox
-          key={id}
+          key={setting.id ? String(setting.id) : `new-${index}`}
           index={index}
-          className="w-full px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+          onRemove={() => removeBox(index)}
+          initialSetting={setting}
         />
       ))}
-
       {/* 추가 버튼 */}
       {boxes.length < 3 && (
         <div className="text-center bg-white rounded-xl p-8 shadow-md border border-gray-100">
@@ -375,9 +514,8 @@ const SettingsPage: React.FC = () => {
           </p>
         </div>
       )}
-
       {/* 전체 설정이 없을 때 메시지 */}
-      {boxes.length === 0 && (
+      {boxes.length === 0 && !loading && (
         <div className="text-center py-16 bg-white rounded-xl shadow-md border border-gray-100">
           <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
             <Clock className="w-10 h-10 text-gray-500" />
