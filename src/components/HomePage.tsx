@@ -4,6 +4,8 @@ import { getNewsByTopic } from '../data/mockData';
 import { NewsItem } from '../types';
 import Modal from './Modal';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const HomePage: React.FC = () => {
   const [hotTopics, setHotTopics] = useState<any[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
@@ -16,7 +18,7 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     const fetchHotTopics = async () => {
       try {
-        const res = await fetch('/api/hottopic');
+        const res = await fetch(`${API_BASE_URL}/api/hottopic`);
         if (res.ok) {
           const data = await res.json();
           setHotTopics(data);
@@ -75,7 +77,7 @@ const HomePage: React.FC = () => {
     setTopicNews([]); // 로딩 전 초기화
 
     try {
-      const res = await fetch(`/api/hottopic/${encodeURIComponent(keyword)}`);
+      const res = await fetch(`${API_BASE_URL}/api/hottopic/${encodeURIComponent(keyword)}`);
       if (res.ok) {
         const data = await res.json();
         setTopicNews(data);

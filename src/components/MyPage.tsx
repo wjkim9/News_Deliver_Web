@@ -4,6 +4,8 @@ import { getMoreNewsByDate } from '../data/mockData';
 import { KakaoMessage, NewsItem } from '../types';
 import Modal from './Modal';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 // 키워드 피드백 API 호출 함수
 const sendKeywordFeedback = async (historyId: number, item: string, feedbackValue: number) => {
   const token = localStorage.getItem('accessToken');
@@ -11,7 +13,7 @@ const sendKeywordFeedback = async (historyId: number, item: string, feedbackValu
     throw new Error('로그인이 필요합니다.');
   }
 
-  const response = await fetch('/sub/feedback/keyword', {
+  const response = await fetch(`${API_BASE_URL}/sub/feedback/keyword`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -39,7 +41,7 @@ const sendContentQualityFeedback = async (historyId: number, item: string, feedb
     throw new Error('로그인이 필요합니다.');
   }
 
-  const response = await fetch('/sub/feedback/content', {
+  const response = await fetch(`${API_BASE_URL}/sub/feedback/content`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -79,7 +81,7 @@ const MyPage: React.FC = () => {
     const fetchHistory = async () => {
       const token = localStorage.getItem('accessToken');
       try {
-        const res = await fetch(`/sub/history?page=${currentPage-1}&size=${itemsPerPage}`, {
+        const res = await fetch(`${API_BASE_URL}/sub/history?page=${currentPage-1}&size=${itemsPerPage}`, {
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
@@ -128,7 +130,7 @@ const MyPage: React.FC = () => {
     setMoreNews([]);
     try {
       const token = localStorage.getItem('accessToken');
-      const res = await fetch(`/sub/history/${historyId}`, {
+      const res = await fetch(`${API_BASE_URL}/sub/history/${historyId}`, {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
