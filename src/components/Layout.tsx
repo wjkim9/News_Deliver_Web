@@ -44,6 +44,8 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, on
     { id: 'settings', label: '설정', icon: Settings }
   ];
 
+  const KAKAO_LOGIN_URL = import.meta.env.VITE_KAKAO_LOGIN_URL;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -79,7 +81,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, on
                 <button
                   onClick={() => {
                     // 실제 카카오 로그인 URL로 리다이렉트
-                    window.location.href = 'http://localhost:8080/oauth2/authorization/kakao';
+                    window.location.href = KAKAO_LOGIN_URL;
                   }}
                   className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg text-sm sm:text-base whitespace-nowrap"
                 >
