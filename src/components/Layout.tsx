@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Settings, User, TrendingUp, List } from 'lucide-react';
 
 interface LayoutProps {
@@ -9,6 +9,35 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, onLoginClick }) => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // 로그인 상태 감지
+  useEffect(() => {
+    setIsLoggedIn(!!localStorage.getItem('accessToken'));
+  }, []);
+
+  // 로그아웃 처리
+  const handleLogout = async () => {
+    const token = localStorage.getItem('accessToken');
+    // 토큰 삭제
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    // 로그아웃 API 호출
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+      });
+    } catch (e) {
+      // 실패해도 토큰은 이미 삭제됨
+    }
+    setIsLoggedIn(false);
+    // 필요시 메인 페이지로 이동 등 추가
+  };
+
   const menuItems = [
     { id: 'home', label: '홈', icon: TrendingUp },
     { id: 'mypage', label: '마이페이지', icon: List },
@@ -29,25 +58,44 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, on
             </div>
             
             <div className="flex items-center">
-              <button
-                onClick={() => {
-                  // 실제 카카오 로그인 URL로 리다이렉트
-                  window.location.href = 'http://localhost:8080/oauth2/authorization/kakao';
-                }}
-                className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg text-sm sm:text-base whitespace-nowrap"
-              >
-                {/* 카카오 로고 SVG */}
-                <svg 
-                  width="16" 
-                  height="16" 
-                  viewBox="0 0 24 24" 
-                  fill="currentColor"
-                  className="flex-shrink-0"
+              {isLoggedIn ? (
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg text-sm sm:text-base whitespace-nowrap"
                 >
-                  <path d="M12 3C6.486 3 2 6.262 2 10.5c0 2.665 1.708 5.033 4.358 6.442l-1.034 3.118c-.096.29.024.608.3.794.276.186.64.186.916 0L9.358 18.5H12c5.514 0 10-3.262 10-7.5S17.514 3 12 3z"/>
-                </svg>
-                <span>카카오 로그인</span>
-              </button>
+                  {/* 카카오 로고 SVG */}
+                  <svg 
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="currentColor"
+                    className="flex-shrink-0"
+                  >
+                    <path d="M12 3C6.486 3 2 6.262 2 10.5c0 2.665 1.708 5.033 4.358 6.442l-1.034 3.118c-.096.29.024.608.3.794.276.186.64.186.916 0L9.358 18.5H12c5.514 0 10-3.262 10-7.5S17.514 3 12 3z"/>
+                  </svg>
+                  <span>로그아웃</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    // 실제 카카오 로그인 URL로 리다이렉트
+                    window.location.href = 'http://localhost:8080/oauth2/authorization/kakao';
+                  }}
+                  className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg text-sm sm:text-base whitespace-nowrap"
+                >
+                  {/* 카카오 로고 SVG */}
+                  <svg 
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="currentColor"
+                    className="flex-shrink-0"
+                  >
+                    <path d="M12 3C6.486 3 2 6.262 2 10.5c0 2.665 1.708 5.033 4.358 6.442l-1.034 3.118c-.096.29.024.608.3.794.276.186.64.186.916 0L9.358 18.5H12c5.514 0 10-3.262 10-7.5S17.514 3 12 3z"/>
+                  </svg>
+                  <span>카카오 로그인</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

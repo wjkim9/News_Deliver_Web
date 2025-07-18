@@ -1,16 +1,34 @@
-import React, { useState } from 'react';
-import { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Clock, Users, ExternalLink, Calendar, TrendingUp, Award } from 'lucide-react';
-import { mockHotTopics, getNewsByTopic } from '../data/mockData';
+import { getNewsByTopic } from '../data/mockData';
 import { NewsItem } from '../types';
 import Modal from './Modal';
 
 const HomePage: React.FC = () => {
+  const [hotTopics, setHotTopics] = useState<any[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
-  const [topicNews, setTopicNews] = useState<NewsItem[]>([]);
+  const [topicNews, setTopicNews] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [visibleItems, setVisibleItems] = useState<Set<string>>(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // 핫토픽 API 호출
+  useEffect(() => {
+    const fetchHotTopics = async () => {
+      try {
+        const res = await fetch('/api/hottopic');
+        if (res.ok) {
+          const data = await res.json();
+          setHotTopics(data);
+        } else {
+          setHotTopics([]);
+        }
+      } catch {
+        setHotTopics([]);
+      }
+    };
+    fetchHotTopics();
+  }, []);
 
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
@@ -49,13 +67,24 @@ const HomePage: React.FC = () => {
         });
       }
     };
-  }, []);
+  }, [hotTopics]);
 
-  const handleTopicClick = (keyword: string) => {
-    const news = getNewsByTopic(keyword);
-    setTopicNews(news);
-    setSelectedTopic(keyword);
+  const handleTopicClick = async (keyword: string) => {
     setIsModalOpen(true);
+    setSelectedTopic(keyword);
+    setTopicNews([]); // 로딩 전 초기화
+
+    try {
+      const res = await fetch(`/api/hottopic/${encodeURIComponent(keyword)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTopicNews(data);
+      } else {
+        setTopicNews([]);
+      }
+    } catch {
+      setTopicNews([]);
+    }
   };
 
   const closeModal = () => {
@@ -107,14 +136,14 @@ const HomePage: React.FC = () => {
 
       {/* Hot Topics List */}
       <div className="flex flex-col gap-6">
-        {mockHotTopics.map((topic, index) => (
+        {hotTopics.map((topic, index) => (
           <div
-            key={topic.id}
-            id={`topic-${topic.id}`}
+            key={topic.topicRank}
+            id={`topic-${topic.topicRank}`}
             data-topic-item
             onClick={() => handleTopicClick(topic.keyword)}
             className={`bg-white rounded-xl shadow-md border border-gray-100 p-6 cursor-pointer transition-all duration-500 transform ${
-              visibleItems.has(`topic-${topic.id}`)
+              visibleItems.has(`topic-${topic.topicRank}`)
                 ? 'hover:shadow-lg hover:shadow-blue-100/50 hover:border-blue-200 hover:-translate-y-1 hover:scale-105 opacity-100 translate-y-0'
                 : 'opacity-0 translate-y-8'
             }`}
@@ -131,7 +160,7 @@ const HomePage: React.FC = () => {
                     'bg-gradient-to-br from-gray-400 to-gray-500'
                   }`}
                 >
-                  {index < 3 ? <Award className="w-5 h-5" /> : topic.rank}
+                  {index < 3 ? <Award className="w-5 h-5" /> : topic.topicRank}
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-1">{topic.keyword}</h3>
@@ -141,14 +170,14 @@ const HomePage: React.FC = () => {
                       index < 6 ? 'bg-blue-100 text-blue-800' :
                       'bg-gray-100 text-gray-700'
                     }`}>
-                      #{topic.rank}위
+                      #{topic.topicRank}위
                     </span>
                     <span className="text-sm text-gray-500">트렌딩</span>
                   </div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-blue-700">{topic.count.toLocaleString()}</div>
+                <div className="text-2xl font-bold text-blue-700">{topic.keywordCount.toLocaleString()}</div>
                 <div className="text-sm text-gray-500 font-medium">관련 뉴스</div>
               </div>
             </div>
@@ -171,20 +200,24 @@ const HomePage: React.FC = () => {
                     <div className="flex items-center space-x-2 mb-2">
                       <span className="text-xs text-gray-600 flex items-center bg-white px-2 py-1 rounded-lg border">
                         <Calendar className="w-3 h-3 mr-1 text-blue-500" />
-                        {formatDate(news.pubDate)}
+                        {news.published_at ? new Date(news.published_at).toLocaleString('ko-KR', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) : ''}
                       </span>
+                      <span className="text-xs text-gray-500 ml-2">{news.publisher}</span>
                     </div>
-                    
                     <h4 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2 leading-tight">
                       {news.title}
                     </h4>
-                    
                     <p className="text-gray-700 text-sm mb-4 line-clamp-2 leading-relaxed">
-                      {news.description}
+                      {news.summary}
                     </p>
-                    
                     <a
-                      href={news.link}
+                      href={news.content_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold transition-colors duration-200"
