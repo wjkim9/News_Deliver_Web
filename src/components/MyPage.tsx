@@ -87,25 +87,39 @@ const MyPage: React.FC = () => {
         });
         if (res.ok) {
           const data = await res.json();
-          // data.data: { data: [...], currentPage, pageSize, totalPages, totalElements }
           const pageData = data.data;
           setMessages(pageData.data || []);
           setCurrentPage((pageData.currentPage ?? 0) + 1); // 0-based → 1-based
           setTotalPages(pageData.totalPages ?? 1);
           setTotalCount(pageData.totalElements ?? 0);
           setItemsPerPage(pageData.pageSize ?? 3);
+
+          // === 피드백 상태 초기화 ===
+          const feedbackInit: {[key: string]: {keyword: 'like' | 'dislike' | null, quality: 'like' | 'dislike' | null}} = {};
+          (pageData.data || []).forEach((message: any) => {
+            (message.newsList || []).forEach((news: any) => {
+              feedbackInit[news.id] = {
+                keyword: news.keywordReflection === 1 ? 'like' : (news.keywordReflection === -1 ? 'dislike' : null),
+                quality: news.contentQuality === 1 ? 'like' : (news.contentQuality === -1 ? 'dislike' : null)
+              };
+            });
+          });
+          setFeedbacks(feedbackInit);
         } else {
           setMessages([]);
           setTotalPages(1);
           setTotalCount(0);
+          setFeedbacks({});
         }
       } catch (error) {
         setMessages([]);
         setTotalPages(1);
         setTotalCount(0);
+        setFeedbacks({});
       }
     };
     fetchHistory();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);
   
   const handleMoreNews = async (historyId: number) => {
