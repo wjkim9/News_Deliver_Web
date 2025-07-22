@@ -63,18 +63,16 @@ const sendContentQualityFeedback = async (historyId: number, item: string, feedb
 };
 
 const MyPage: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1); // 1-based
   const [messages, setMessages] = useState<any[]>([]);
-  const [totalCount, setTotalCount] = useState(0); // 필요시 사용
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(3);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [moreNews, setMoreNews] = useState<NewsItem[]>([]);
   const [isMoreNewsModalOpen, setIsMoreNewsModalOpen] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [feedbacks, setFeedbacks] = useState<{[key: string]: {keyword: 'like' | 'dislike' | null, quality: 'like' | 'dislike' | null}}>({});
-
-  const itemsPerPage = 3;
-  const currentMessages = messages;
-  const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
 
   // API에서 히스토리 불러오기
   React.useEffect(() => {
@@ -89,36 +87,22 @@ const MyPage: React.FC = () => {
         });
         if (res.ok) {
           const data = await res.json();
-          console.log('=== 히스토리 API 응답 구조 분석 ===');
-          console.log('전체 API 응답:', data);
-          console.log('data.data 타입:', typeof data.data);
-          console.log('data.data 길이:', data.data?.length);
-          
-          if (data.data && data.data.length > 0) {
-            const firstMessage = data.data[0];
-            console.log('첫 번째 메시지:', firstMessage);
-            console.log('첫 번째 메시지의 모든 키:', Object.keys(firstMessage));
-            
-            // 각 키와 값을 출력
-            Object.entries(firstMessage).forEach(([key, value]) => {
-              console.log(`${key}: ${value} (타입: ${typeof value})`);
-            });
-            
-            if (firstMessage.newsList && firstMessage.newsList.length > 0) {
-              const firstNews = firstMessage.newsList[0];
-              console.log('첫 번째 뉴스:', firstNews);
-              console.log('첫 번째 뉴스의 모든 키:', Object.keys(firstNews));
-            }
-          }
-          
-          setMessages(data.data || []);
+          // data.data: { data: [...], currentPage, pageSize, totalPages, totalElements }
+          const pageData = data.data;
+          setMessages(pageData.data || []);
+          setCurrentPage((pageData.currentPage ?? 0) + 1); // 0-based → 1-based
+          setTotalPages(pageData.totalPages ?? 1);
+          setTotalCount(pageData.totalElements ?? 0);
+          setItemsPerPage(pageData.pageSize ?? 3);
         } else {
-          console.error('히스토리 API 호출 실패:', res.status, res.statusText);
           setMessages([]);
+          setTotalPages(1);
+          setTotalCount(0);
         }
       } catch (error) {
-        console.error('히스토리 API 호출 중 오류:', error);
         setMessages([]);
+        setTotalPages(1);
+        setTotalCount(0);
       }
     };
     fetchHistory();
@@ -408,7 +392,7 @@ const MyPage: React.FC = () => {
 
       {/* Message List */}
       <div className="space-y-4">
-        {currentMessages.map((message) => (
+        {messages.map((message) => (
           <div key={message.id} className="bg-white rounded-xl shadow-md border border-gray-100 p-8 hover:shadow-lg transition-all duration-300">
             {/* Message Header */}
             <div className="flex items-center justify-between mb-6">
@@ -535,7 +519,7 @@ const MyPage: React.FC = () => {
       {/* Pagination */}
       <div className="flex flex-col sm:flex-row items-center justify-between bg-white rounded-xl p-4 sm:p-6 shadow-md border border-gray-100 space-y-4 sm:space-y-0">
         <div className="text-sm text-gray-700 font-medium">
-          {messages.length > 0 ? `총 ${messages.length}개 표시` : '표시할 히스토리가 없습니다.'}
+          {totalCount > 0 ? `총 ${totalCount}개 표시` : '표시할 히스토리가 없습니다.'}
         </div>
         
         <div className="flex items-center space-x-1 sm:space-x-2">
