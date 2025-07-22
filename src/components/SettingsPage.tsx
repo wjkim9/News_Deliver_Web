@@ -57,6 +57,7 @@ function convertSettingFromServer(setting: any): Partial<SettingData> {
   };
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.likelionnews.click';
 const DeliveryBox: React.FC<DeliveryBoxProps> = ({ index, onRemove, initialSetting }) => {
   // id 상태 추가
   const [id, setId] = useState<number | undefined>(initialSetting?.id);
@@ -130,7 +131,7 @@ const DeliveryBox: React.FC<DeliveryBoxProps> = ({ index, onRemove, initialSetti
     };
     try {
       const token = localStorage.getItem('accessToken');
-      const res = await fetch('/api/setting', {
+      const res = await fetch(`${API_BASE_URL}/api/setting`, {
         method: id ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -165,7 +166,7 @@ const DeliveryBox: React.FC<DeliveryBoxProps> = ({ index, onRemove, initialSetti
     setIsDeleting(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const res = await fetch(`/api/setting/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/setting/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -421,7 +422,7 @@ const SettingsPage: React.FC = () => {
       setLoading(true);
       try {
         const token = localStorage.getItem('accessToken');
-        const res = await fetch('/api/setting', {
+        const res = await fetch(`${API_BASE_URL}/api/setting`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
