@@ -97,14 +97,10 @@ const DeliveryBox: React.FC<DeliveryBoxProps> = ({ index, onRemove, initialSetti
   // 한글 요일 → 숫자 매핑
   const dayToNumber: { [key: string]: number } = { '월': 1, '화': 2, '수': 3, '목': 4, '금': 5, '토': 6, '일': 7 };
 
-  // 날짜+시간을 ISO 8601로 변환 (예: 2024-06-01 + 08:00 → 2024-06-01T08:00:00.000Z)
-  function toISODateTime(date: string, time: string) {
+  // 날짜+시간을 한국 시간(로컬) 그대로 ISO 8601 문자열로 변환 (예: 2024-06-01 + 08:00 → 2024-06-01T08:00:00)
+  function toLocalISOString(date: string, time: string) {
     if (!date || !time) return '';
-    // 브라우저 환경에서 시간대 문제를 피하려면 local time으로 조합 후 toISOString
-    const [year, month, day] = date.split('-').map(Number);
-    const [hour, minute] = time.split(':').map(Number);
-    const d = new Date(year, month - 1, day, hour, minute);
-    return d.toISOString();
+    return `${date}T${time}:00`;
   }
 
   // 저장 함수 수정: id 유무에 따라 POST/PUT
@@ -121,9 +117,9 @@ const DeliveryBox: React.FC<DeliveryBoxProps> = ({ index, onRemove, initialSetti
     // SettingDTO에 맞게 데이터 변환
     const settingData = {
       id,
-      deliveryTime: toISODateTime(deliveryStartDate, deliveryTime), // deliveryTime도 ISO 8601로 보냄
-      startDate: toISODateTime(deliveryStartDate, deliveryTime),
-      endDate: toISODateTime(deliveryEndDate, deliveryTime),
+      deliveryTime: toLocalISOString(deliveryStartDate, deliveryTime), // deliveryTime도 한국 시간 문자열로 보냄
+      startDate: toLocalISOString(deliveryStartDate, deliveryTime),
+      endDate: toLocalISOString(deliveryEndDate, deliveryTime),
       settingKeywords: keywords.filter(k => k.type === 'include').map(k => k.value),
       blockKeywords: keywords.filter(k => k.type === 'exclude').map(k => k.value),
       days: selectedDays.map(day => dayToNumber[day]),
