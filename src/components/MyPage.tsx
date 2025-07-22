@@ -4,7 +4,8 @@ import { getMoreNewsByDate } from '../data/mockData';
 import { KakaoMessage, NewsItem } from '../types';
 import Modal from './Modal';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.likelionnews.click';
 
 // 키워드 피드백 API 호출 함수
 const sendKeywordFeedback = async (historyId: number, item: string, feedbackValue: number) => {

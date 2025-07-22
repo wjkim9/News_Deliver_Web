@@ -8,6 +8,9 @@ interface LayoutProps {
   onLoginClick: () => void;
 }
 
+
+const KAKAO_LOGIN_URL = import.meta.env.VITE_KAKAO_LOGIN_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.likelionnews.click';
 const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, onLoginClick }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const KAKAO_LOGIN_URL = import.meta.env.VITE_KAKAO_LOGIN_URL;
@@ -29,7 +32,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, on
     const token = localStorage.getItem('accessToken');
     if (!token) return;
 
-    fetch('/api/auth/status', {
+    fetch(`${API_BASE_URL}/api/auth/status`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -60,7 +63,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, on
     sessionStorage.removeItem('tokenProcessed');
 
     try {
-      await fetch('/api/auth/logout', {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
