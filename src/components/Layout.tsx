@@ -61,6 +61,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, on
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     sessionStorage.removeItem('tokenProcessed');
+    setIsLoggedIn(false); // 상태 즉시 반영
 
     try {
       await fetch(`${API_BASE_URL}/api/auth/logout`, {
@@ -73,7 +74,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, on
     } catch (e) {
       console.warn('로그아웃 실패:', e);
     }
-    setIsLoggedIn(false);
+    window.location.reload(); // 로그아웃 후 새로고침
   };
 
   const menuItems = [
